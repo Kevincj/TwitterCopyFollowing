@@ -119,45 +119,43 @@ def get_list_members(list_id, count = 2000):
             break
     return ids
 
-def copyFollowing(target_user, account_name, from_list = None):
-    global oauth
-    print("Time: %s" % time.ctime())
-    
-    
-    if target_user:
+def get_user_following(target_user, count = 2000):
+    ids = []
+    cursor = -1
+    while cursor != 0:
         params = {
-            "count": 5000,
-            "screen_name": target_user
-        }
+            "count": count,
+            "screen_name": target_user,
+            "cursor": cursor
+            }
         response = oauth.get(
             "https://api.twitter.com/1.1/friends/ids.json",
             params = params
         )
         if response.status_code == 200:
             contents = json.loads(response.content.decode('utf8'))
+            ids += [str(content) for content in contents['ids']]
+            cursor = contents['next_cursor']
+            
         else:
-            print(response.status_code, response.content)
-        ids = contents['ids']
+            print("get_user_following", response.status_code, response.content)
+            break
+    return ids
+
+def copyFollowing(target_user, account_name, from_list = None):
+    global oauth
+    print("Time: %s" % time.ctime())
+    
+    
+    if target_user:
+        ids = get_user_following(target_user)
     else:
         ids = from_list
-        
     print("%d users followed by %s" % (len(ids), target_user))
           
-    params = {
-        "count": 5000,
-        "screen_name": account_name
-    }
-    response = oauth.get(
-        "https://api.twitter.com/1.1/friends/ids.json",
-        params = params
-    )
-    if response.status_code == 200:
-        contents = json.loads(response.content.decode('utf8'))
-    else:
-        print(response.status_code, response.content)
-    id_existing = contents['ids']
+    id_existing = get_user_following(account_name)
     print("%d users followed by %s" % (len(id_existing), account_name))
-          
+    
     diff = list(set(ids) - set(id_existing))
     print("%d users to add" % len(diff))
           
@@ -251,7 +249,7 @@ while True:
         target = None
         try:
             with open("all.users", "r") as f:
-                ids = [int(x) for x in json.load(f)]
+                ids = json.load(f)
         except:
             ids = []
 
