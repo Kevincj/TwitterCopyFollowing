@@ -120,6 +120,7 @@ def get_list_members(list_id, count = 2000):
     return ids
 
 def get_user_following(target_user, count = 2000):
+
     ids = []
     cursor = -1
     while cursor != 0:
@@ -140,21 +141,26 @@ def get_user_following(target_user, count = 2000):
         else:
             print("get_user_following", response.status_code, response.content)
             break
+
+ 
     return ids
 
-def copyFollowing(target_user, account_name, from_list = None):
+def copyFollowing(target_user, account):
     global oauth
     print("Time: %s" % time.ctime())
     
     
-    if target_user:
+    if type(target_user) == str:
         ids = get_user_following(target_user)
     else:
-        ids = from_list
-    print("%d users followed by %s" % (len(ids), target_user))
-          
-    id_existing = get_user_following(account_name)
-    print("%d users followed by %s" % (len(id_existing), account_name))
+        ids = target_user
+    print("%d users followed in total" % (len(ids)))
+
+    if type(account) == str:
+        id_existing = get_user_following(account)
+    else:
+        id_existing = account
+    print("%d users followed existing" % (len(id_existing)))
     
     diff = list(set(ids) - set(id_existing))
     print("%d users to add" % len(diff))
@@ -191,6 +197,7 @@ def copyFollowing(target_user, account_name, from_list = None):
                 diff.pop()
                 count += 1
                 print(count, "...OK")
+                id_existing.append(sampled_id)
             limit = False
         else:
             
@@ -212,7 +219,10 @@ def copyFollowing(target_user, account_name, from_list = None):
                 print("Follow", response.status_code, response.content)
                 break
         time.sleep(np.random.randint(256))
-        
+    
+
+    with open("following.users", "w") as f:
+        json.dump(ids, f)
 
 
 
@@ -242,30 +252,33 @@ while True:
     except:
         pending_users = []
 
+    try:
+        with open("following.users", "r") as f:
+            account = json.load(f)
+    except:
+        account = account_name
 
     if len(sys.argv) >= 3:
         target = sys.argv[2]
     else:
-        target = None
         try:
             with open("all.users", "r") as f:
-                ids = json.load(f)
+                target = json.load(f)
         except:
-            ids = []
+            target = []
 
     try:
-        if target:
-            copyFollowing(target_user = target, account_name = account_name)
-        else:
-            copyFollowing(target_user = None, account_name = account_name, from_list = ids)
+        copyFollowing(target_user = target, account = account)
         print("Finished.")
     except KeyboardInterrupt:
         pass
     except Exception:
         traceback.print_exc()
     finally:
+
         print("Saving...")
+            
         with open("pending.users", "w") as f:
             json.dump(pending_users, f)
-            
+    break
     time.sleep(3600)
