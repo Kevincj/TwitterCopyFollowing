@@ -152,12 +152,17 @@ def copyFollowing(target_user, account):
     
     if type(target_user) == str:
         ids = get_user_following(target_user)
+        
+        with open("following.users", "w") as f:
+            json.dump(ids, f)
     else:
         ids = target_user
     print("%d users followed in total" % (len(ids)))
 
     if type(account) == str:
         id_existing = get_user_following(account)
+        with open("following.users", "w") as f:
+            json.dump(id_existing, f)
     else:
         id_existing = account
     print("%d users followed existing" % (len(id_existing)))
@@ -222,26 +227,29 @@ def copyFollowing(target_user, account):
     
 
     with open("following.users", "w") as f:
-        json.dump(ids, f)
+        json.dump(id_existing, f)
 
 
 
 
 
 
-next_hour = 1
+next_hour = None
 account_name = sys.argv[1]
 oauth = getOAuth()
 dt = datetime.now()
 
 while True:
     dt = datetime.now()
-    print("Current hour: %d, waiting until: %d" % (dt.hour, next_hour))
-    while dt.hour != next_hour:
-        dt = datetime.now()
-        time.sleep(30)
-        continue
 
+    if next_hour:
+        print("Current hour: %d, waiting until: %d" % (dt.hour, next_hour))
+        while dt.hour != next_hour:
+            dt = datetime.now()
+            time.sleep(30)
+            continue
+    else:
+        next_hour = dt.hour
     print("Run", dt)
     
 
