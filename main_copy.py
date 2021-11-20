@@ -152,17 +152,12 @@ def copyFollowing(target_user, account):
     
     if type(target_user) == str:
         ids = get_user_following(target_user)
-        
-        with open("all.users", "w") as f:
-            json.dump(ids, f)
     else:
         ids = target_user
     print("%d users followed in total" % (len(ids)))
 
     if type(account) == str:
         id_existing = get_user_following(account)
-        with open("following.users", "w") as f:
-            json.dump(id_existing, f)
     else:
         id_existing = account
     print("%d users followed existing" % (len(id_existing)))
@@ -173,73 +168,61 @@ def copyFollowing(target_user, account):
     err_ret_ids = []
     count = 0
     limit = False
-
-    try:
-        while diff:
-            sampled_id = diff[-1]
-            if sampled_id in pending_users:
-                diff.pop()
-                continue
+    while diff:
+        sampled_id = diff[-1]
+        if sampled_id in pending_users:
+            diff.pop()
+            continue
+        response = oauth.post(
+          "https://api.twitter.com/1.1/friendships/create.json",
+          params = {
+            "user_id": sampled_id
+          }
+        )
+        if response.status_code == 200:
+    #         print("Successfully followed", sampled_id)
             response = oauth.post(
-              "https://api.twitter.com/1.1/friendships/create.json",
+              "https://api.twitter.com/1.1/friendships/update.json",
               params = {
-                "user_id": sampled_id
+                "user_id": sampled_id,
+                "retweets": "false"
               }
             )
-            if response.status_code == 200:
-        #         print("Successfully followed", sampled_id)
-                response = oauth.post(
-                  "https://api.twitter.com/1.1/friendships/update.json",
-                  params = {
-                    "user_id": sampled_id,
-                    "retweets": "false"
-                  }
-                )
-                if response.status_code != 200:
-                    print("Disable retweets", response.status_code, response.content)
-                    err_ret_ids.append(sampled_id)
-                    if json.loads(response.content.decode('utf8'))["errors"][0]["code"]  != 167:
-                        break
-                else:
-                    diff.pop()
-                    count += 1
-                    print(count, "...OK")
-                    id_existing.append(sampled_id)
-                limit = False
-            else:
-                
-                code = json.loads(response.content.decode('utf8'))["errors"][0]["code"]
-                if code == 160 or code == 162:
-                    print(sampled_id, code)
-                    pending_users.append(sampled_id)
-                    diff.pop()
-                    limit = False
-                    continue
-                elif code == 161:
-                    print("Last limit:", limit)
-                    if limit: break
-                    print("API limit...")
-                    limit = True
-                    time.sleep(60)
-                    continue
-                else:
-                    print("Follow", response.status_code, response.content)
+            if response.status_code != 200:
+                print("Disable retweets", response.status_code, response.content)
+                err_ret_ids.append(sampled_id)
+                if json.loads(response.content.decode('utf8'))["errors"][0]["code"]  != 167:
                     break
-            time.sleep(np.random.randint(256))
-    except KeyboardInterrupt:
-        pass
-    except Exception:
-        traceback.print_exc()
-    finally:
+            else:
+                diff.pop()
+                count += 1
+                print(count, "...OK")
+                id_existing.append(sampled_id)
+            limit = False
+        else:
+            
+            code = json.loads(response.content.decode('utf8'))["errors"][0]["code"]
+            if code == 160 or code == 162:
+                print(sampled_id, code)
+                pending_users.append(sampled_id)
+                diff.pop()
+                limit = False
+                continue
+            elif code == 161:
+                print("Last limit:", limit)
+                if limit: break
+                print("API limit...")
+                limit = True
+                time.sleep(60)
+                continue
+            else:
+                print("Follow", response.status_code, response.content)
+                break
+        time.sleep(np.random.randint(256))
+    
 
-        print("Saving...")
-
-        with open("all.users", "w") as f:
-            json.dump(target, f)
-        with open("pending.users", "w") as f:
-            json.dump(pending_users, f)
-        with open("following.users", "w") as f:
-            json.dump(id_existing, f)
+    with open("following.users", "w") as f:
+        json.dump(ids, f)
 
 
 
@@ -253,16 +236,16 @@ dt = datetime.now()
 
 while True:
     dt = datetime.now()
-
-    if next_hour:
+    if not next_hour:
+        next_hour = dt.hour
+    else:
         print("Current hour: %d, waiting until: %d" % (dt.hour, next_hour))
         while dt.hour != next_hour:
             dt = datetime.now()
             time.sleep(30)
             continue
-    else:
-        next_hour = dt.hour
-    print("Run", dt)
+
+    print("Run @", dt)
     
 
 
@@ -291,10 +274,14 @@ while True:
         copyFollowing(target_user = target, account = account)
         print("Finished.")
     except KeyboardInterrupt:
-        print("Interrupted.")
-        break
+        pass
     except Exception:
         traceback.print_exc()
-        break
-    for i in range(3600):
-        time.sleep(1)
+    finally:
+
+        print("Saving...")
+            
+        with open("pending.users", "w") as f:
+            json.dump(pending_users, f)
+    break
+    time.sleep(3600)
