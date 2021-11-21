@@ -283,5 +283,4 @@ while True:
             
         with open("pending.users", "w") as f:
             json.dump(pending_users, f)
-    break
     time.sleep(3600)
